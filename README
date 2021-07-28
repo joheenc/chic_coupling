@@ -1,0 +1,4 @@
+To compute a coupling matrix start-to-finish:
+./clean.sh
+sbatch --share -a 0-299 tle_to_blm.sh   #read in a given orbit and compute the beam coverage as a function of time
+sbatch --share blm_to_corr.sh           #compute the coupling matrix and alm cross-correlations of the beam matrix
