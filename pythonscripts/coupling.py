@@ -2,7 +2,7 @@ import numpy as np
 import healpy as hp
 from scipy.ndimage import rotate
 from sgp4.api import Satrec, SGP4_ERRORS
-from astropy.coordinates import SkyCoord, ITRS, TEME, CartesianDifferential, CartesianRepresentation
+from astropy.coordinates import ITRS, TEME, CartesianDifferential, CartesianRepresentation
 from astropy.time import Time
 from astropy import units as u
 
@@ -69,27 +69,28 @@ def orbit_from_tle(tle1, tle2, starttime, stoptime, tstep=6.944e-4):
     return ras, decs
     
 
-def sky_coverage(lons, lats, psis, coordsys='galactic', beamthetastd=0.3, beamphistd=0.3, nres=400, nside=32, progress=0, display=False):
+def sky_coverage(lons, lats, psis, incoords='c', outcoords='g', beamthetastd=0.3, beamphistd=0.3, nres=400, nside=32, display=False):
     skycov = np.zeros((lons.shape[0], hp.nside2npix(nside)))
-    if coordsys in ['celestial', 'equatorial', 'c', 'C']: #conversion to galactic coords
-        for i in range(lons.shape[0]):
-            c = SkyCoord(lons[i], lats[i], frame='icrs', unit='deg')
-            lons[i] = c.galactic.l.degree
-            lats[i] = c.galactic.b.degree
-
     phis = (lons%360-180)*np.pi/180
     thetas = (90-lats)*np.pi/180
     beam, indices, beammap = point_beam(thetas[0], phis[0],\
                                         beamthetastd=beamthetastd, beamphistd=beamphistd, nres=nres, nside=nside)
-    skycov[0] = beammap
+    skycov[0] = (beammap - np.min(beammap)) / (np.max(beammap) - np.min(beammap))
     for i in range(1, lons.shape[0], 1):
         beam, beammap = rotate_beam(beam, indices, beammap, thetas[i-1], phis[i-1],\
                               thetas[i], phis[i], psi=psis[i], nres=nres, nside=nside)
         if display:
             hp.mollview(beammap)
-        skycov[i] = beammap
+        skycov[i] = (beammap - np.min(beammap)) / (np.max(beammap) - np.min(beammap))
         if progress != 0 and i%progress==0:
             print(i)
+    if incoords != outcoords:
+        if incoords in ['celestial', 'equatorial', 'c', 'C'] and outcoords in ['galactic', 'g', 'G']: #conversion from celestial to galactic coords
+            r = hp.Rotator(coord='cg')
+            skycov = r.rotate_map_pixel(skycov)
+        elif incoords in ['galactic', 'g', 'G'] and outcoords in ['celestial', 'equatorial', 'c', 'C']: #conversion from galactic to celestial
+            r = hp.Rotator(coord='gc')
+            skycov = r.rotate_map_pixel(skycov)
     return skycov
 
 def gal_to_dipole(hpxmap): #convert galactic coordinates to "dipole" coordinates
