@@ -1,3 +1,5 @@
+See SURF_2021_final_report.pdf for details
+
 To compute a coupling matrix start-to-finish:
 ./clean.sh
 sbatch --share -a 0-299 tle_to_blm.sh   #read in a given orbit and compute the beam coverage as a function of time
